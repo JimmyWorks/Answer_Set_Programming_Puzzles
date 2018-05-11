@@ -1,0 +1,6 @@
+Running ASP logic programs
+
+1. Navigate to the folder containing lparse, smodels, and ASP programs
+2. Run lparse with the corresponding logic program and pipe the tokens to smodels:
+	lparse towerofhanoi.txt | smodels 0
+3. Answer(s) will be outputted on the console

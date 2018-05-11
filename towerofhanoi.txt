@@ -1,0 +1,360 @@
+%%%%%%%%%%%%%% TOWER OF HANOI %%%%%%%%%%%%%%
+
+% Author: Jimmy Nguyen
+% Email: Jimmy@Jimmyworks.net
+
+% Description:
+% "Tower of Hanoi" is a puzzle where three
+% pegs or towers are available for rings to
+% be placed, but only one ring may be held
+% at any point in time.  The idea is to start
+% with an orientation of stacked rings to be
+% reoriented to a new orientation/solution.
+% The following solution uses Answer-Set
+% Programming (ASP) to solve these puzzles.
+
+%%%%%%%%%%%%%%%%% Visuals %%%%%%%%%%%%%%%%%%
+
+% Starting Orientation:
+
+%  ||     ||     ||
+%  ||     ||     ||
+%  ||    ringB   ||
+% ringA  ringD  ringC
+%=====================
+% peg1   peg2   peg3
+
+% Final Orientation:
+
+%  ||     ||    ringA
+%  ||     ||    ringB
+%  ||     ||    ringc
+%  ||     ||    ringD
+%=====================
+% peg1   peg2   peg3
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\begin{verbatim}
+
+%%%%%%%%%%%%%% Define Objects %%%%%%%%%%%%%%
+
+% Max Number of Moves
+const length=13.
+time(1..length).
+
+% Rings
+ring(a).
+ring(b).
+ring(c).
+ring(d).
+
+% Peg Positions
+peg(peg1).
+peg(peg2).
+peg(peg3).
+
+%%%%%%%%%% Initial Conditions %%%%%%%%%%
+
+initially(handempty).
+initially(clear(a)).
+initially(clear(b)).
+initially(clear(c)).
+initially(on(a, peg1)).
+initially(on(d, peg2)).
+initially(on(c, peg3)).
+initially(on(b,d)).
+
+%%%%%%%%%%%%%% Final Goal %%%%%%%%%%%%%%
+
+finally(clear(peg1)).
+finally(clear(peg2)).
+finally(on(d, peg3)).
+finally(on(c, d)).
+finally(on(b, c)).
+finally(on(a, b)).
+
+%%%%%%%%%%%%%% Rules %%%%%%%%%%%%%%
+
+% Define Failure
+not_goal(T):- time(T),
+    literal(X),
+    finally(X),
+    not holds(X,T).
+
+% Meet Goal in Max Moves
+goal(T) :- time(T),
+    not not_goal(T).
+
+% Define Success
+exists_plan :- goal(length).
+
+% No success if no solution
+:- not exists_plan.
+
+%%%%%%%%%%%%%% Define Fluents %%%%%%%%%%%%%%
+
+% Ring can be on ring
+fluent(on(X,Y)) :-
+    ring(X),
+    ring(Y).
+	
+% Ring can be on peg	
+fluent(on(X,Y)) :-
+	ring(X),
+	peg(Y).
+	
+% Ring can be clear
+fluent(clear(X)) :-
+    ring(X).
+
+% Peg can be clear
+fluent(clear(X)) :-
+	peg(X).
+
+% Ring can be held
+fluent(holding(X)) :-
+    ring(X).
+
+% Hand can be empty
+fluent(handempty).
+
+%%%%%%%%%%%%%% Define Actions %%%%%%%%%%%%%%
+
+%%% PICK UP/PUT DOWN ACTIONS
+
+action(pick_up(X, Y)) :-
+    ring(X),
+	peg(Y).
+
+action(put_down(X, Y)) :-
+    ring(X),
+	peg(Y).
+
+%%% STACK/UNSTACK ACTIONS
+	
+action(stack(X,Y)) :-
+    ring(X),
+    ring(Y).
+
+action(unstack(X,Y)) :-
+    ring(X),
+    ring(Y).
+
+
+%%%%%%%%%%%%%% Define executable Actions %%%%%%%%%%%%%%
+
+executable(pick_up(X, Y), T)   :-
+    ring(X),
+	peg(Y),
+    time(T),
+    T < length,
+    holds(clear(X), T),
+    holds(on(X, Y), T),
+    holds(handempty, T).
+
+executable(put_down(X, Y), T)  :-
+    ring(X),
+	peg(Y),
+        time(T),
+        T < length,
+	holds(clear(Y),T),
+    holds(holding(X),T).
+
+executable(stack(X,Y),T)    :-
+    ring(Y),
+    ring(X),
+        time(T),
+        T < length,
+    holds(holding(X),T),
+    holds(clear(Y), T).
+
+executable(unstack(X,Y),T)  :-
+    ring(Y),
+    ring(X),
+        time(T),
+        T < length,
+        holds(clear(X), T),
+        holds(on(X,Y), T),
+        holds(handempty, T).
+
+
+%%%%%%%%%%%%%% Define Causes of Actions %%%%%%%%%%%%%%
+
+%%% EFFECTS OF PICKING UP
+
+causes(pick_up(X, Y), neg(on(X, Y))) :-
+    ring(X),
+	peg(Y).
+
+causes(pick_up(X, Y), neg(clear(X)))   :-
+    ring(X),
+	peg(Y).
+
+causes(pick_up(X, Y), holding(X))      :-
+    ring(X),
+	peg(Y).
+
+causes(pick_up(X, Y), neg(handempty))      :-
+    ring(X),
+	peg(Y).
+		
+causes(pick_up(X, Y), clear(Y))      :-
+    ring(X),
+	peg(Y).
+
+%%% EFFECTS OF PUTTING DOWN
+
+causes(put_down(X, Y), on(X, Y))     :-
+        ring(X),
+		peg(Y).
+
+causes(put_down(X, Y), clear(X))           :-
+        ring(X),
+		peg(Y).
+		
+causes(put_down(X, Y), neg(clear(Y)))         :-
+        ring(X),
+		peg(Y).		
+
+causes(put_down(X, Y), neg(holding(X)))    :-
+        ring(X),
+		peg(Y).
+
+causes(put_down(X, Y), handempty)          :-
+        ring(X),
+		peg(Y).
+
+%%% EFFECTS OF STACKING
+		
+causes(stack(X,Y), neg(holding(X))) :-
+    ring(X),
+    ring(Y).
+
+causes(stack(X,Y), neg(clear(Y)))       :-
+        ring(X),
+        ring(Y).
+
+causes(stack(X,Y), clear(X))            :-
+        ring(X),
+        ring(Y).
+
+causes(stack(X,Y), handempty)           :-
+        ring(X),
+        ring(Y).
+
+causes(stack(X,Y), on(X,Y))             :-
+        ring(X),
+        ring(Y).
+
+%%% EFFECTS OF UNSTACKING
+
+causes(unstack(X,Y), holding(X))        :-
+        ring(X),
+        ring(Y).
+
+causes(unstack(X,Y), clear(Y))          :-
+        ring(X),
+        ring(Y).
+
+causes(unstack(X,Y), neg(clear(X)))     :-
+        ring(X),
+        ring(Y).
+
+causes(unstack(X,Y), neg(handempty))      :-
+        ring(X),
+        ring(Y).
+
+causes(unstack(X,Y), neg(on(X,Y)))        :-
+        ring(X),
+        ring(Y).
+
+
+%%%%%%%%%%%%%%%% Define Literals %%%%%%%%%%%%%%%%
+
+
+literal(G)  :-
+    fluent(G).
+
+literal(neg(G)) :-
+    fluent(G).
+
+contrary(F, neg(F)) :-
+    fluent(F).
+
+contrary(neg(F), F) :-
+    fluent(F).
+
+
+%%%%%%%% Define Constraints on executable Actions %%%%%%%%
+
+holds(F, 1) :-
+    literal(F),
+    initially(F).
+
+holds(F, T+1)   :-
+    literal(F),
+    time(T),
+    T < length,
+    action(A),
+    executable(A,T),
+    occurs(A,T),
+    causes(A,F).
+
+holds(F, T+1)   :-
+        literal(F),
+    literal(G),
+    contrary(F,G),
+        time(T),
+        T < length,
+    holds(F,T),
+    not holds(G, T+1).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+possible(A,T)   :-
+    action(A),
+    time(T),
+    executable(A,T),
+    not goal(T).
+
+occurs(A,T) :-
+    action(A),
+    time(T),
+    possible(A,T),
+    not not_occurs(A,T).
+
+not_occurs(A,T) :-
+    action(A),
+    action(AA),
+    time(T),
+    occurs(AA,T),
+    neq(A,AA).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ show initially(X).
+ show finally(X).
+ hide time(T).
+ hide action(A).
+ hide causes(A,F).
+ hide initially(F).
+ hide contrary(F,G).
+ hide fluent(F).
+ hide literal(L).
+ hide executable(A,T).
+ hide holds(F,T).
+ hide not_occurs(A,T).
+ hide possible(A,T).
+ hide possible1(A,T).
+ hide possible2(A,T).
+ hide ring(X).
+ hide peg(X).
+ hide exists_plan.
+ hide finally(X).
+ hide goal(T).
+ hide not_goal(T).
+
+% \end{verbatim}
+
+

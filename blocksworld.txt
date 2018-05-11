@@ -1,0 +1,515 @@
+%%%%%%%%%%%%%% BLOCKS WORLD %%%%%%%%%%%%%%
+
+% Author: Jimmy Nguyen
+% Email: Jimmy@Jimmyworks.net
+
+% Description:
+% Inspired by "Tower of Hanoi", Blocks World
+% is a puzzle using very similar logic and
+% constraints.  The puzzle consists of
+% blocks stacked on top of each other with
+% an initial orientation and a final goal
+% orientation.  Only one block can be held
+% at any time and blocks can be put down
+% on top of another block or anywhere on the
+% table.  Blocks can only support a single
+% block directly on top of it.
+%
+% To further constrain the problem, only
+% four positions are available on the table
+% in this modified version which can only 
+% hold a single block (similar to Tower of 
+% Hanoi).  Also, a triangular block was
+% introduced which cannot have any square
+% blocks placed on top of it, whereas square
+% blocks can support a single block wide.
+
+% The following solution uses Answer-Set
+% Programming (ASP) to solve these puzzles.
+
+%%%%%%%%%%%%%%%%% Visuals %%%%%%%%%%%%%%%%%
+
+% Starting Orientation:
+
+%    / \
+%  /TRI X\
+% |BLOCK B| 
+% |BLOCK A|   |BLOCK C|     
+% =================== Table ====================
+% position1   position2   posistion3  position4
+
+% Final Orientation:
+%                            / \
+%                          /TRI X\
+%                         |BLOCK A|
+%                         |BLOCK B|  
+%                         |BLOCK C|
+% =================== Table ====================
+% position1   position2   posistion3  position4
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\begin{verbatim}
+
+%%%%%%%%%%%%%% Define Objects %%%%%%%%%%%%%%
+
+% Max Number of Moves
+const length = 11.
+time(1..length).
+
+% Blocks and Triangles
+block(a).
+block(b).
+block(c).
+triangle(x).
+
+% Table Positions
+table(t1).
+table(t2).
+table(t3).
+table(t4).
+
+%%%%%%%%%% Initial Conditions %%%%%%%%%%
+
+initially(handempty).
+initially(clear(c)).
+initially(clear(t3)).
+initially(clear(t4)).
+initially(on(c, t2)).
+initially(on(a, t1)).
+initially(on(b, a)).
+initially(on(x, b)).
+
+%%%%%%%%%%%%%% Final Goal %%%%%%%%%%%%%%
+
+finally(on(c, t3)).
+finally(on(b, c)).
+finally(on(a, b)).
+finally(on(x, a)).
+finally(clear(t1)).
+finally(clear(t2)).
+finally(clear(t4)).
+
+% Define Failure
+not_goal(T):- time(T),
+    literal(X),
+    finally(X),
+    not holds(X,T).
+
+% Meet Goal in Max Moves
+goal(T) :- time(T),
+    not not_goal(T).
+
+% Define Success
+exists_plan :- goal(length).
+
+% No success if no solution
+:- not exists_plan.
+
+%Defining what are fluents and
+%what are actions.
+
+%%%%%%%%%%%%%% Define Fluents %%%%%%%%%%%%%%
+
+% Block can be on block
+fluent(on(X,Y)) :-
+    block(X),
+    block(Y).
+
+% Block can be on table	
+fluent(on(X,Y)) :-
+	block(X),
+	table(Y).
+
+% Triangle can be on block	
+fluent(on(X,Y)) :-
+	triangle(X),
+	block(Y).
+
+% Triangle can be on table
+fluent(on(X,Y)) :-
+	triangle(X),
+	table(Y).	
+
+% Block can be clear	
+fluent(clear(X)) :-
+    block(X).
+
+% Table can be clear
+fluent(clear(X)) :-
+	table(X).
+	
+% Block can be held
+fluent(holding(X)) :-
+    block(X).
+
+% Triangle can be held	
+fluent(holding(X)) :-
+	triangle(X).
+
+% Hand can be empty
+fluent(handempty).
+
+%%%%%%%%%%%%%% Define Actions %%%%%%%%%%%%%%
+
+%%% PICK UP Actions
+
+action(pick_up(X, Y)) :-
+    block(X),
+	table(Y).
+	
+action(pick_up(X, Y)) :-
+    triangle(X),
+	table(Y).
+
+%%% PUT DOWN Actions
+	
+action(put_down(X, Y)) :-
+    block(X),
+	table(Y).
+
+action(put_down(X, Y)) :-
+    triangle(X),
+	table(Y).
+
+%%% STACK Actions	
+	
+action(stack(X,Y)) :-
+    block(X),
+    block(Y).
+	
+action(stack(X,Y)) :-
+    triangle(X),
+    block(Y).
+
+%%% UNSTACK Actions		
+	
+action(unstack(X,Y)) :-
+    block(X),
+    block(Y).
+	
+action(unstack(X,Y)) :-
+    triangle(X),
+    block(Y).
+
+%%%%%%%%%%%%%% Define Executable Actions %%%%%%%%%%%%%%
+
+%%% EXECUTABLE ACTIONS WITH BLOCKS
+
+executable(pick_up(X, Y), T)   :-
+    block(X),
+	table(Y),
+    time(T),
+    T < length,
+    holds(clear(X), T),
+    holds(on(X, Y), T),
+    holds(handempty, T).
+
+executable(put_down(X, Y), T)  :-
+    block(X),
+	table(Y),
+        time(T),
+        T < length,
+	holds(clear(Y),T),
+    holds(holding(X),T).
+	
+executable(stack(X,Y),T)    :-
+    block(Y),
+    block(X),
+        time(T),
+        T < length,
+    holds(holding(X),T),
+    holds(clear(Y), T).
+
+executable(unstack(X,Y),T)  :-
+    block(Y),
+    block(X),
+        time(T),
+        T < length,
+        holds(clear(X), T),
+        holds(on(X,Y), T),
+        holds(handempty, T).
+
+%%% EXECUTABLE ACTIONS WITH TRIANGLES
+		
+executable(pick_up(X, Y), T)   :-
+    triangle(X),
+	table(Y),
+    time(T),
+    T < length,
+    holds(on(X, Y), T),
+    holds(handempty, T).
+
+executable(put_down(X, Y), T)  :-
+    triangle(X),
+	table(Y),
+        time(T),
+        T < length,
+	holds(clear(Y),T),
+    holds(holding(X),T).
+		
+executable(stack(X,Y),T)    :-
+    triangle(X),
+    block(Y),
+        time(T),
+        T < length,
+    holds(holding(X),T),
+    holds(clear(Y), T).
+
+executable(unstack(X,Y),T)  :-
+    triangle(X),
+    block(Y),
+        time(T),
+        T < length,
+        holds(on(X,Y), T),
+        holds(handempty, T).
+
+%%%%%%%%%%%%%% Define Causes of Actions %%%%%%%%%%%%%%
+
+%%% EFFECTS OF PICKING UP BLOCK
+
+causes(pick_up(X, Y), neg(on(X, Y))) :-
+    block(X),
+	table(Y).
+
+causes(pick_up(X, Y), neg(clear(X)))   :-
+    block(X),
+	table(Y).
+
+causes(pick_up(X, Y), holding(X))      :-
+    block(X),
+	table(Y).
+
+causes(pick_up(X, Y), neg(handempty))      :-
+    block(X),
+	table(Y).
+		
+causes(pick_up(X, Y), clear(Y))      :-
+    block(X),
+	table(Y).
+
+%%% EFFECTS OF PICKING UP TRIANGLE
+
+causes(pick_up(X, Y), neg(on(X, Y))) :-
+    triangle(X),
+	table(Y).
+
+causes(pick_up(X, Y), holding(X))      :-
+    triangle(X),
+	table(Y).
+
+causes(pick_up(X, Y), neg(handempty))      :-
+    triangle(X),
+	table(Y).
+		
+causes(pick_up(X, Y), clear(Y))      :-
+    triangle(X),
+	table(Y).
+
+%%% EFFECTS OF PUTTING DOWN BLOCK
+
+causes(put_down(X, Y), on(X, Y))     :-
+        block(X),
+		table(Y).
+
+causes(put_down(X, Y), clear(X))           :-
+        block(X),
+		table(Y).
+		
+causes(put_down(X, Y), neg(clear(Y)))         :-
+        block(X),
+		table(Y).		
+
+causes(put_down(X, Y), neg(holding(X)))    :-
+        block(X),
+		table(Y).
+
+causes(put_down(X, Y), handempty)          :-
+        block(X),
+		table(Y).
+
+%%% EFFECTS OF PUTTING DOWN TRIANGLE
+
+causes(put_down(X, Y), on(X, Y))     :-
+        triangle(X),
+		table(Y).
+		
+causes(put_down(X, Y), neg(clear(Y)))         :-
+        triangle(X),
+		table(Y).		
+
+causes(put_down(X, Y), neg(holding(X)))    :-
+        triangle(X),
+		table(Y).
+
+causes(put_down(X, Y), handempty)          :-
+        triangle(X),
+		table(Y).
+
+%%% EFFECTS OF STACKING BLOCK ON BLOCK		
+
+causes(stack(X,Y), neg(holding(X))) :-
+		block(X),
+		block(Y).
+
+causes(stack(X,Y), neg(clear(Y)))       :-
+        block(X),
+        block(Y).
+
+causes(stack(X,Y), clear(X))            :-
+        block(X),
+        block(Y).
+
+causes(stack(X,Y), handempty)           :-
+        block(X),
+        block(Y).
+
+causes(stack(X,Y), on(X,Y))             :-
+        block(X),
+        block(Y).
+
+%%% EFFECTS OF STACKING TRIANGLE ON BLOCK	
+	
+causes(stack(X,Y), neg(holding(X))) :-
+    triangle(X),
+    block(Y).
+
+causes(stack(X,Y), neg(clear(Y)))       :-
+        triangle(X),
+        block(Y).
+
+causes(stack(X,Y), handempty)           :-
+        triangle(X),
+        block(Y).
+
+causes(stack(X,Y), on(X,Y))             :-
+        triangle(X),
+        block(Y).
+
+%%% EFFECTS OF UNSTACKING BLOCK ON BLOCK	
+
+causes(unstack(X,Y), holding(X))        :-
+        block(X),
+        block(Y).
+
+causes(unstack(X,Y), clear(Y))          :-
+        block(X),
+        block(Y).
+
+causes(unstack(X,Y), neg(clear(X)))     :-
+        block(X),
+        block(Y).
+
+causes(unstack(X,Y), neg(handempty))      :-
+        block(X),
+        block(Y).
+
+causes(unstack(X,Y), neg(on(X,Y)))        :-
+        block(X),
+        block(Y).
+
+%%% EFFECTS OF UNSTACKING TRIANGLE ON BLOCK
+
+causes(unstack(X,Y), holding(X))        :-
+        triangle(X),
+        block(Y).
+
+causes(unstack(X,Y), clear(Y))          :-
+        triangle(X),
+        block(Y).
+
+causes(unstack(X,Y), neg(handempty))      :-
+        triangle(X),
+        block(Y).
+
+causes(unstack(X,Y), neg(on(X,Y)))        :-
+        triangle(X),
+        block(Y).
+
+%%%%%%%%%%%%%%%% Define Literals %%%%%%%%%%%%%%%%
+
+
+literal(G)  :-
+    fluent(G).
+
+literal(neg(G)) :-
+    fluent(G).
+
+contrary(F, neg(F)) :-
+    fluent(F).
+
+contrary(neg(F), F) :-
+    fluent(F).
+
+
+%%%%%%%% Define Constraints on Executable Actions %%%%%%%%
+
+holds(F, 1) :-
+    literal(F),
+    initially(F).
+
+holds(F, T+1)   :-
+    literal(F),
+    time(T),
+    T < length,
+    action(A),
+    executable(A,T),
+    occurs(A,T),
+    causes(A,F).
+
+holds(F, T+1)   :-
+        literal(F),
+    literal(G),
+    contrary(F,G),
+        time(T),
+        T < length,
+    holds(F,T),
+    not holds(G, T+1).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+possible(A,T)   :-
+    action(A),
+    time(T),
+    executable(A,T),
+    not goal(T).
+
+occurs(A,T) :-
+    action(A),
+    time(T),
+    possible(A,T),
+    not not_occurs(A,T).
+
+not_occurs(A,T) :-
+    action(A),
+    action(AA),
+    time(T),
+    occurs(AA,T),
+    neq(A,AA).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ show initially(X).
+ show finally(X).
+ hide time(T).
+ hide action(A).
+ hide causes(A,F).
+ hide initially(F).
+ hide contrary(F,G).
+ hide fluent(F).
+ hide literal(L).
+ hide executable(A,T).
+ hide holds(F,T).
+ hide not_occurs(A,T).
+ hide possible(A,T).
+ hide possible1(A,T).
+ hide possible2(A,T).
+ hide block(X).
+ hide exists_plan.
+ hide finally(X).
+ hide goal(T).
+ hide not_goal(T).
+
+% \end{verbatim}
+
+
